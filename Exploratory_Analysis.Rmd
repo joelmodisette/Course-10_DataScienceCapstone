@@ -1,0 +1,313 @@
+---
+title: "Exploratory Analysis"
+author: "Joel Modisette"
+date: "1/11/2022"
+output: html_document
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = FALSE, warning = FALSE, message = FALSE, cache = TRUE)
+```
+
+### Introduction
+
+This project predicts the next word in a sentence by text mining blogs, news and twitter data. For this progress update, I perform the following tasks:
+
+* Download the data 
+* Select English data and perform some basic exploration:
+  + Word Counts
+  + Line Counts
+  + Basic data characteristics
+* Provide basic prediction precursor features
+  + Comparison of word frequency amongst the data sets
+  + Word Frequency of unigrams, bigrams, trigrams and quadgrams
+* Discuss plan to implement these discoveries into a word prediction app
+
+The project deliverable will be an R Shiny app that predicts the next word in a sentence, given a user input of 1 to 3 words.
+
+The corpus used in the text mining drew from publically available sources and was accessed from the John Hopkins Coursera website.
+
+### Raw Data Exploration
+
+Analysis of the raw data produced the following table of file characteristics:
+
+
+```{r download_process, echo=FALSE}
+rm(list = ls())
+suppressPackageStartupMessages({
+  library(tidytext)
+  library(tidyverse)
+  library(stringr)
+  library(knitr)
+  library(ngram)
+  library(gt)
+  library(ggplot2)
+})
+
+# Just need the English files
+
+enTwitterFile <- "./final/en_US/en_US.twitter.txt"
+enBlogsFile <- "./final/en_US/en_US.blogs.txt"
+enNewsFile <- "./final/en_US/en_US.news.txt"
+
+con <- file(enTwitterFile, "r")
+enTwitterData <- readLines(con)
+close(con)
+
+con <- file(enBlogsFile, "r")
+enBlogsData <- readLines(con)
+close(con)
+
+con <- file(enNewsFile, "r")
+enNewsData <- readLines(con)
+close(con)
+
+# Look at File Sizes (Mb)
+
+blogs_size   <- file.size(enBlogsFile) / (2^20)
+news_size    <- file.size(enNewsFile) / (2^20)
+twitter_size <- file.size(enTwitterFile) / (2^20)
+file_sizes <- c(blogs_size, news_size, twitter_size)
+file_sizes <- c(blogs_size, news_size, twitter_size, sum(file_sizes))
+
+# Read the data files
+
+blogs   <- read_lines(enBlogsFile)
+news    <- read_lines(enNewsFile)
+twitter <- read_lines(enTwitterFile) 
+file_names = c("blogs", "news", "twitter", "Totals")
+
+# Number of Lines per file
+
+blogs_lines   <- length(blogs)
+news_lines    <- length(news)
+twitter_lines <- length(twitter)
+total_lines   <- blogs_lines + news_lines + twitter_lines
+file_lines <- c(blogs_lines, news_lines, twitter_lines)
+pct_num_lines = round(file_lines/sum(file_lines), 2)
+file_lines <- c(file_lines, sum(file_lines))
+pct_num_lines <- c(pct_num_lines, sum(pct_num_lines))
+
+# Total Char in each file
+
+blogs_nchar_sum   <- sum(nchar(blogs))
+news_nchar_sum    <- sum(nchar(news))
+twitter_nchar_sum <- sum(nchar(twitter))
+num_char <- c(blogs_nchar_sum, news_nchar_sum, twitter_nchar_sum)
+pct_num_char = round(num_char/sum(num_char), 2)
+num_char <- c(num_char, sum(num_char))
+pct_num_char <- c(pct_num_char, sum(pct_num_char))
+
+# Total words per file
+
+blogs_words <- wordcount(blogs, sep = " ")
+news_words  <- wordcount(news,  sep = " ")
+twitter_words <- wordcount(twitter, sep = " ")
+num_words <- c(blogs_words, news_words, twitter_words )
+pct_num_words = round(num_words/sum(num_words), 2)
+num_words <- c(num_words, sum(num_words) )
+pct_num_words <- c(pct_num_words, sum(pct_num_words))
+
+```
+
+```{r table }
+# Summarize the stats
+summary <- data.frame(file_names, file_sizes, file_lines, num_char, num_words,
+                      pct_num_char, pct_num_lines, pct_num_words)
+gt(summary)
+
+```
+
+ 
+The files are large - all over 200 MB. The complete data set contains 4,269,674 lines, primarily from the twitter data set. Blogs contained both the most number of characters and words. Twitter data contained the most lines but the fewest number of words. 
+
+### Cleaning the data and sampling
+
+To achieve the objective of word prediction, all non alphabetic characters
+were removed. These data sets were large, and a 5 % random sampling of the data enabled the analysis to process in a reasonable time on the computer
+available. 
+
+```{r clean_sample, echo= FALSE}
+
+# these files are large. Sample 5% of them.
+
+# Read the data files into dataframes
+blogs   <- tibble(blogs) %>% rename(text = blogs)
+news    <- tibble(news) %>% rename(text = news)
+twitter <- tibble(twitter) %>% rename(text = twitter)
+
+set.seed(1001)
+sample_pct <- 0.05
+
+blogs_sample <- blogs %>%
+  sample_n(., nrow(blogs)*sample_pct)
+news_sample <- news %>%
+  sample_n(., nrow(news)*sample_pct)
+twitter_sample <- twitter %>%
+  sample_n(., nrow(twitter)*sample_pct)
+
+# Create tidy repository
+repo_sample <- bind_rows(mutate(blogs_sample, source = "blogs"),
+                         mutate(news_sample,  source = "news"),
+                         mutate(twitter_sample, source = "twitter")) 
+repo_sample$source <- as.factor(repo_sample$source)
+
+
+#only keeping letters and apostrophies - no numbers or symbols
+cleaned_repo_sample <- repo_sample %>%
+  mutate(source = tolower(source)) %>%
+  mutate(source = str_replace_all(source, "[^a-z']", " ")) %>% #replace all text with " " except lower case letters a-z 
+  mutate(source = str_replace_all(source, " {2,}", " ")) #remove double spaces
+
+```
+
+### Extracting n-grams and comparing data sets.
+
+N-Grams, or single-double-triple-quadruple word combinations, of the data were
+extracted. To test the success of the extraction, the following is a comparison
+of unigram frequency amongst the 3 data sets: blogs, news and twitter.
+
+
+```{r ngram_build, echo= FALSE}
+
+# Create the n-grams
+
+# unigrams first
+
+uni_repo_sample <- cleaned_repo_sample %>% unnest_tokens(word, text) 
+uni_repo_sample$source <- as.factor(uni_repo_sample$source)
+uni_count <- uni_repo_sample  %>% 
+  count(source, word, sort = TRUE) %>%
+  group_by(source) %>%
+  mutate(percent = n/sum(n)*100)
+
+# bi-grams next
+
+bigram_repo_sample <- cleaned_repo_sample %>% unnest_tokens(bigram, text, token = "ngrams", n = 2)
+bigram_repo_sample$source <- as.factor(bigram_repo_sample$source) 
+# now Trigrams  
+
+trigram_repo_sample <- cleaned_repo_sample  %>%
+  unnest_tokens(trigram, text, token = "ngrams", n = 3) %>%
+  drop_na()
+trigram_repo_sample$source <- as.factor(trigram_repo_sample$source) 
+
+# Quad-grams
+
+quadgram_repo_sample <- cleaned_repo_sample  %>%
+  unnest_tokens(quadgram, text, token = "ngrams", n = 4) %>%
+  drop_na()
+quadgram_repo_sample$source <- as.factor(quadgram_repo_sample$source) 
+
+```
+
+```{r unigram_compare, echo=FALSE }
+# now the unigram comparison
+
+uni_count %>% 
+  group_by(source) %>%
+  top_n(20, percent)  %>%
+  ungroup() %>%
+  mutate(word = reorder_within(word, -percent, source)) %>%
+  ggplot( aes(x = word, y = percent)) +
+  geom_col(show.legend = FALSE) +
+  facet_grid(~source, scales = 'free') +
+  theme(axis.text.x = element_text(angle = 90)) +
+  xlab("word") +
+  ylab("percent of total")
+
+```
+
+The most common words in each data set were the English words: "the", "and", "to", "a" "of". The word "the" appears in over 5% of the words in both blogs and news articles and 3% of the words from twitter.
+
+This chart displays a frequency comparison of the top 20 words over the three
+data sets. For example, the word "have" only appears in the top 20 words in the blog dataset.
+
+#### Monograms Frequencies
+
+Here we see the monogram, or single word, percent of total over all the data sources combined. 
+
+```{r unigram_freq, echo=FALSE }
+
+uni_repo_sample  %>% 
+  count( word ) %>%
+  mutate(percent = n/sum(n)*100) %>%
+  top_n(20, percent)  %>%
+  ggplot( aes(x = reorder(word, -percent), y = percent)) +
+  geom_bar(stat = "identity") +
+  xlab("word") +
+  ylab("percent of total")
+
+```
+
+### Bigrams Frequencies
+ 
+This is the percent of total of the top 20 bigrams over all data sources. The most
+common phrase here is "of the". Note the reduced percentage of bigrams compared to unigrams.
+
+```{r bigram_freq, echo=FALSE }
+
+bigram_repo_sample  %>% 
+  count( bigram) %>%
+  mutate(percent = n/sum(n)*100) %>%
+  top_n(20, percent)  %>%
+  ggplot( aes(x = reorder(bigram, -percent), y = percent)) +
+  geom_bar(stat = "identity") +
+  theme(axis.text.x = element_text(angle = 90)) +
+  xlab("bigram") +
+  ylab("percent of total")
+
+```
+
+
+### Trigram Frequencies
+
+This chart shows the percent of total of the top 20 trigrams over all data sources. The most
+common phrase here is "one of the". The trigrams have an overall reduced percentage of total than the bigrams.
+
+
+```{r trigram_freq, echo=FALSE }
+
+trigram_repo_sample  %>% 
+  count(trigram) %>%
+  mutate(percent = n/sum(n)*100) %>%
+  top_n(20, percent)  %>%
+  ggplot( aes(x = reorder(trigram, -percent), y = percent)) +
+  geom_bar(stat = "identity") +
+  theme(axis.text.x = element_text(angle = 90)) +
+  xlab("trigram") +
+  ylab("percent of total")
+
+``` 
+
+### Quadgram Frequencies
+
+Here is the the percent of total of the top 20 quadgrams over all data sources. The most
+common phrase here is "the end of the". Quadgram overall percentage is much less than the trigrams.
+
+
+```{r quadgram_freq, echo=FALSE }
+
+quadgram_repo_sample  %>% 
+  count(quadgram) %>%
+  mutate(percent = n/sum(n)*100) %>%
+  top_n(20, percent)  %>%
+  ggplot( aes(x = reorder(quadgram, -percent), y = percent)) +
+  geom_bar(stat = "identity") +
+  theme(axis.text.x = element_text(angle = 90)) +
+  xlab("quadgram") +
+  ylab("percent of total")
+
+``` 
+
+
+### Creating a prediction algorithm
+
+These ngrams form the basis of the predition model for sentence completion. Many
+more quadgrams occur in the data than trigrams, and more trigrams occur than
+bigrams, and so on. The higher the order of the ngram, the more will be required
+to cover any individual word provided for prediction. This may have an impact on
+app performance. In this model, the probability of the next predicted word
+depends on the previous words. Since we have limited our analysis to 5% of the
+corpus, unseen words will present a problem in predition. Correcting for this
+involves smoothing algorithm, such as additive smoothing and other approaches.
