@@ -22,4 +22,4 @@ These are the working scripts I used to experiment and build:
 
 [R Shiny Word Prediction App](JDModisetteShiny/)
 
-+ Published here: https://rpubs.com/JoelModisette/Word_Pred
++ Published here: https://jdmodisette.shinyapps.io/JDModisetteShiny/
