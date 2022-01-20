@@ -23,11 +23,3 @@ A 5 slide deck created with R presentations pitching your algorithm and app to y
 During the capstone you can get support from your fellow students, from us, and from the engineers at SwiftKey. But we really want you to show your independence, creativity, and initiative. We have been incredibly impressed by your performance in the classes up until now and know you can do great things.
 
 We have compiled some basic natural language processing resources below. You are welcome to use these resources or any others you can find while performing this analysis. One thing to keep in mind is that we do not expect you to become a world's expert in natural language processing. The point of this capstone is for you to show you can explore a new data type, quickly get up to speed on a new application, and implement a useful model in a reasonable period of time. We think NLP is very cool and depending on your future goals may be worth studying more in-depth, but you can complete this project by using your general knowledge of data science and basic knowledge of NLP. 
-
-Here are a few resources that might be good places to start as you tackle this ambitious project.
-
-[https://www.jstatsoft.org/article/view/v025i05](Text mining infrastucture in R)
-
-[https://cran.r-project.org/web/views/NaturalLanguageProcessing.html](CRAN Task View: Natural Language Processing)
-
-Videos and [https://web.stanford.edu/~jurafsky/NLPCourseraSlides.html](Slides) from Stanford Natural Language Processing course
