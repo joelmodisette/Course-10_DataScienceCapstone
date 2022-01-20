@@ -15,4 +15,6 @@ These are the working scripts I used to experiment and build:
 
 [Exploratory Analysis Document](Exploratory_Analysis.Rmd)
 
+[Short Presentation on the R Shiny App](Pred_App_Presentation.RPres)
+
 [R Shiny Word Prediction App](JDModisetteShiny/)
