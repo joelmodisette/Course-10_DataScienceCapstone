@@ -18,8 +18,8 @@ These are the working scripts I used to experiment and build:
 
 [Short Presentation on the R Shiny App](Pred_App_Presentation.Rpres)
 
-Published here:  [https://rpubs.com/JoelModisette/Capstone10_EA](https://rpubs.com/JoelModisette/Capstone10_EA)
++ Published here:  [https://rpubs.com/JoelModisette/Capstone10_EA](https://rpubs.com/JoelModisette/Capstone10_EA)
 
 [R Shiny Word Prediction App](JDModisetteShiny/)
 
-Published here: []
++ Published here: []
