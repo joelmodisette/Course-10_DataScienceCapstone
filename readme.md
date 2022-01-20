@@ -3,7 +3,7 @@
 
 This project objective was an R Shiny App that predicted the next word in a sentence.
 
-[Coursera Project Overview](ProjectOverview.md)
+[Coursera Capstone Project Assignment](ProjectOverview.md)
 ### Project Working Scripts
 
 These are the working scripts I used to experiment and build:
